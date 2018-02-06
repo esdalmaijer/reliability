@@ -7,7 +7,7 @@ Python package to compute the reliability of measurements.
 Example usage
 -------------
 
-~~~
+~~~ .python
 import numpy
 from reliability import split_half, test_retest
 
