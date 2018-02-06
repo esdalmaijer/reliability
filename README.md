@@ -9,7 +9,7 @@ Example usage
 
 ~~~
 import numpy
-from reliability import split_half
+from reliability import split_half, test_retest
 
 # Fake data details.
 m_range = [300, 1000]
