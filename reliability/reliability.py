@@ -35,13 +35,8 @@ def split_half(x, n_splits=100, mode='spearman-brown'):
                     Default value is 'spearman-brown'.
     
     Returns
-    (r, sem)    -   r is a NumPy array with shape (N), where N is the number
-                    of participants or tests. The values are the split-half
-                    reliability within each participant or test.
-                    sem is a NumPy array with shape (N), where N is the
-                    number of participants or tests. The values are the 
-                    standard error of the mean split-half reliability within
-                    each participant or test.
+    (r, sem)    -   r is the average split-half reliability over n_splits.
+                    sem standard error of the mean split-half reliability.
     """
     
     # Check the input.
@@ -96,6 +91,59 @@ def split_half(x, n_splits=100, mode='spearman-brown'):
     return r, sem
 
 
+def test_retest(x, mode='harris'):
+    
+    """Computes the test-retest reliability.
+    
+    Arguments
+    
+    x           -   A NumPy array with shape (M,N) where M is the number of
+                    measurements per participant, and N is the number of
+                    participants.
+    
+    Keyword Arguments
+    
+    mode        -   String indicating the method for computing the rest-retest
+                    reliability. Choose from 'fisher' (only whith two
+                    measurements per participant!) or 'harris' (works for any
+                    number of measurements per participants).
+    
+    Returns
+    
+    r           -   Float that is the test-retest reliability.
+    """
+    
+    # Get the number of measurements per participant, and the number of
+    # participants.
+    n_measurements, n_subjects = x.shape
+    
+    # Fisher (for two measurements).
+    if mode == 'fisher' and n_measurements == 2:
+        # Compute the pooled mean.
+        m = numpy.sum(x[0,:] + x[1,:]) / (2 * n_subjects)
+        # Compute the pooled variance.
+        var = (numpy.sum((x[0,:] - m)**2) + numpy.sum((x[1,:] - m)**2)) \
+            / (2 * n_subjects)
+        # Compute the intraclass correlation according to Fisher.
+        r = numpy.sum((x[0,:]-m)*(x[1,:]-m)) / (n_subjects * var)
+    
+    # Harris for 2 measurements of over.
+    elif mode == 'harris':
+        # Compute the pooled mean.
+        m = numpy.sum(numpy.sum(x, axis=0)) / (n_measurements*n_subjects)
+        # Compute the pooled standard deviation.
+        var = numpy.sum(numpy.sum((x - m)**2, axis=0)) \
+            / (n_measurements * n_subjects)
+        # Compute the intraclass correlation according to Harris.
+        a = n_measurements / float(n_measurements-1)
+        b = numpy.sum((numpy.mean(x, axis=0) - m)**2) / n_subjects
+        c = 1.0 / float(n_measurements-1)
+        r = a * (b / var) - c
+    
+    return r
+    
+
+
 
 if __name__ == "__main__":
 
@@ -103,9 +151,11 @@ if __name__ == "__main__":
     m_range = [300, 1000]
     sd_range = [250, 750]
     min_value = 50.0
-    # Construct fake data.
     n_trials = 100
     n_subjects = 30
+    n_measurements = 5
+
+    # Construct fake data for split-half reliability.
     x = numpy.zeros((n_trials, n_subjects), dtype=float)
     for i in range(n_subjects):
         # Choose a random mean for this participant.
@@ -119,6 +169,19 @@ if __name__ == "__main__":
     
     # Compute the split-half reliabilities.
     r, sem = split_half(x, n_splits=100, mode='spearman-brown')
-    print("Test-retest reliability is %.2f (SEM=%.2f)" % (r, sem))
+    print("Split-half reliability is %.2f (SEM=%.2f)" % (r, sem))
     
-
+    # Construct fake data for repeated measurements.
+    x = numpy.zeros((n_measurements, n_subjects), dtype=float)
+    for i in range(n_subjects):
+        # Choose a random mean for this participant.
+        m = numpy.random.rand() * (m_range[1]-m_range[0]) + m_range[0]
+        # Choose a random standard deviation for this participant.
+        sd = numpy.random.rand() * (sd_range[1]-sd_range[0]) + sd_range[0]
+        # Create random values for each measurement.
+        for j in range(n_measurements):
+            x[j,i] = numpy.mean(m + numpy.random.randn(n_trials)*sd)
+    
+    # Compute the test-retest reliability.
+    r = test_retest(x, mode='harris')
+    print("Test-retest reliability is %.2f" % (r))
